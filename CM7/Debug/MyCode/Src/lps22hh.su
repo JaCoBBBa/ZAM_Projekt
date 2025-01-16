@@ -1,0 +1,7 @@
+../MyCode/Src/lps22hh.c:12:9:lps_read_reg	40	static
+../MyCode/Src/lps22hh.c:20:6:lps_write_reg	40	static
+../MyCode/Src/lps22hh.c:25:19:lps_read_val	56	static
+../MyCode/Src/lps22hh.c:47:6:LPS22HH_Init	16	static
+../MyCode/Src/lps22hh.c:73:7:apply_moving_average	32	static
+../MyCode/Src/lps22hh.c:84:6:kalman_init	24	static
+../MyCode/Src/lps22hh.c:94:7:kalman_update	16	static
