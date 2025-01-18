@@ -3,7 +3,7 @@
 ../Core/Src/bno055_stm32.h:32:6:bno055_writeData	40	static
 ../Core/Src/bno055_stm32.h:97:6:bno055_readData	24	static
 ../Core/Src/main.c:69:5:__io_putchar	16	static
-../Core/Src/main.c:88:6:I2C_Scanner	16	static
-../Core/Src/main.c:105:5:main	264	static
-../Core/Src/main.c:251:6:SystemClock_Config	120	static
-../Core/Src/main.c:311:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:93:6:I2C_Scanner	16	static
+../Core/Src/main.c:110:5:main	304	static
+../Core/Src/main.c:327:6:SystemClock_Config	120	static
+../Core/Src/main.c:387:6:Error_Handler	4	static,ignoring_inline_asm

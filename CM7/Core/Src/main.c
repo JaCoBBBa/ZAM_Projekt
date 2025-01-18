@@ -85,6 +85,11 @@ float h = 0.0; //wysokosc
 float h_over_filter = 0.0;
 float h_over_Kalman = 0.0;
 
+float stable_altitude = 0.0f;
+float changing_altitude = 0.0f;
+
+#define NO_MOTION_THRESHOLD  1.0f
+
 void I2C_Scanner(void) {
 	printf("Scanning I2C bus...\r\n");
 	for (uint16_t i = 0; i < 128; i++) {
@@ -168,74 +173,145 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 
-	 LPS22HH_Init();
-	 HAL_Delay(3000); // dla inicjalizacji, wazne jak korzystam z usredniania w ukladzie - by sam mogl przeliczy inicjalne probki i wpisac do fifo itp
+	LPS22HH_Init();
+	HAL_Delay(3000); // dla inicjalizacji, wazne jak korzystam z usredniania w ukladzie - by sam mogl przeliczy inicjalne probki i wpisac do fifo itp
 
-  struct values_lps result_lps = lps_read_val();
-	 p0 = result_lps.pressure;
+	struct values_lps result_lps = lps_read_val();
+	p0 = result_lps.pressure;
 
 	// wypełnienie tablicy filtra frdniej kraczacej poczatkowymi danymi
-  for (int i = 0; i < FILTER_SIZE; i++) {
-      pressure_values[i] = p0; // Wypełnienie tablicy pierwszym pomiarem
-  }
-  filter_index = 0; // Reset indeksu
-  KalmanFilter kf;
+	for (int i = 0; i < FILTER_SIZE; i++) {
+		pressure_values[i] = p0; // Wypełnienie tablicy pierwszym pomiarem
+	}
+	filter_index = 0; // Reset indeksu
+	KalmanFilter kf;
 	// Inicjalizacja filtru Kalmana
 	//pierwsza stała w tym przypadku to przybliżenie niepewności dotyczącej modelu procesu, czyli tego, jak zmienia się stan między kolejnymi iteracjami.
 	//druga stała w tym przypadku to szacowanie niepewności w odczytach czujnika (np. szumu w pomiarze ciśnienia atmosferycznego).
-  kalman_init(&kf, p0, 1.0f, 1.0f);// Wariancja procesu i pomiaru (dopasuj do aplikacji)
+	kalman_init(&kf, p0, 1.0f, 1.0f);// Wariancja procesu i pomiaru (dopasuj do aplikacji)
 
-
-  HAL_Delay(1000);
-
-	//ACC init
+	//	//ACC init
 	bno055_assignI2C(&hi2c2);
 	bno055_setup();
 	bno055_setOperationModeNDOF();
+	HAL_Delay(1000);
 
 	while (1) {
-	  struct values_lps result_lps = lps_read_val();
-	  t = result_lps.temp;
-	  p = result_lps.pressure;
-	  //h = -29.271769 * t * log(p / p0);
-	  float filtered_pressure = apply_moving_average(pressure_values, &filter_index, FILTER_SIZE, p);
+		// wersja podstawowa -------------------------------------------------------------------same odczyty itp-----------------------------------
 
-	//	 Filtracja za pomocą Kalmana
-      float filtered_pressure_Kalman = kalman_update(&kf, p);
+//	  struct values_lps result_lps = lps_read_val();
+//	  t = result_lps.temp;
+//	  p = result_lps.pressure;
+//	  //h = -29.271769 * t * log(p / p0);
+//	  float filtered_pressure = apply_moving_average(pressure_values, &filter_index, FILTER_SIZE, p);
+//
+//	//	 Filtracja za pomocą Kalmana
+//      float filtered_pressure_Kalman = kalman_update(&kf, p);
+//
+//	//	ponoc dokładniejszy sposob bazujacy na innym wzorze - lepiej reaguje na zmiany, większe wahania
+//	  h = 44330.0 * (1.0 - pow(p / p0, 0.1903));
+//	  h_over_filter = 44330.0 * (1.0 - pow(filtered_pressure / p0, 0.1903));
+//	  h_over_Kalman = 44330.0 * (1.0 - pow(filtered_pressure_Kalman / p0, 0.1903));
+//	  printf("T = %.1f*C\n", result_lps.temp);
+//	  printf("p = %.1f hPa\n", result_lps.pressure);
+//	  printf("h przed filtracją           = %.2f m\n", h);
+//	  printf("h po filtracji (krocząca)   = %.2f m\n", h_over_filter);
+//	  printf("h po filtracji (Kalman)     = %.2f m\n", h_over_Kalman);
+//
+//	  // Dane surowe z akcelerometru
+//	      bno055_vector_t accel = bno055_getVectorAccelerometer();
+//	      printf("Accel Raw - X: %.2f Y: %.2f Z: %.2f (m/s²)\r\n", accel.x, accel.y, accel.z);
+//
+//	      // Dane surowe z magnetometru
+//	      bno055_vector_t mag = bno055_getVectorMagnetometer();
+//	      printf("Magnetometer Raw - X: %.2f Y: %.2f Z: %.2f (µT)\r\n", mag.x, mag.y, mag.z);
+//
+//	      // Dane surowe z żyroskopu
+//	      bno055_vector_t gyro = bno055_getVectorGyroscope();
+//	      printf("Gyro Raw - X: %.2f Y: %.2f Z: %.2f (°/s)\r\n", gyro.x, gyro.y, gyro.z);
+//
+//	      // Kąty Eulera po fuzji danych
+//	      bno055_vector_t euler = bno055_getVectorEuler();
+//	      printf("Euler - Heading: %.2f Roll: %.2f Pitch: %.2f\r\n", euler.x, euler.y, euler.z);
+//
+//	      // Kwaterniony
+//	      bno055_vector_t quat = bno055_getVectorQuaternion();
+//	      printf("Quaternion - W: %.2f X: %.2f Y: %.2f Z: %.2f\r\n", quat.w, quat.x, quat.y, quat.z);
+//
+//
+//		HAL_Delay(100);
 
-	//	ponoc dokładniejszy sposob bazujacy na innym wzorze - lepiej reaguje na zmiany, większe wahania
-	  h = 44330.0 * (1.0 - pow(p / p0, 0.1903));
-	  h_over_filter = 44330.0 * (1.0 - pow(filtered_pressure / p0, 0.1903));
-	  h_over_Kalman = 44330.0 * (1.0 - pow(filtered_pressure_Kalman / p0, 0.1903));
-	  printf("T = %.1f*C\n", result_lps.temp);
-	  printf("p = %.1f hPa\n", result_lps.pressure);
-	  printf("h przed filtracją           = %.2f m\n", h);
-	  printf("h po filtracji (krocząca)   = %.2f m\n", h_over_filter);
-	  printf("h po filtracji (Kalman)     = %.2f m\n", h_over_Kalman);
+		//Wersja z dodaniem warunków i semi fuzja danych -----------------------------------------------------------------------------------------------------------
+		// 1) Odczyt barometru i obliczenie wysokości
+		struct values_lps result_lps = lps_read_val();
+		t = result_lps.temp;
+		p = result_lps.pressure;
 
-	  // Dane surowe z akcelerometru
-	      bno055_vector_t accel = bno055_getVectorAccelerometer();
-	      printf("Accel Raw - X: %.2f Y: %.2f Z: %.2f (m/s²)\r\n", accel.x, accel.y, accel.z);
+		float filtered_pressure = apply_moving_average(pressure_values,
+				&filter_index, FILTER_SIZE, p);
+		float filtered_pressure_Kalman = kalman_update(&kf, p);
 
-	      // Dane surowe z magnetometru
-	      bno055_vector_t mag = bno055_getVectorMagnetometer();
-	      printf("Magnetometer Raw - X: %.2f Y: %.2f Z: %.2f (µT)\r\n", mag.x, mag.y, mag.z);
+		// liczenie
+		h = 44330.0 * (1.0 - pow(p / p0, 0.1903));
+		h_over_filter = 44330.0 * (1.0 - pow(filtered_pressure / p0, 0.1903));
+		h_over_Kalman = 44330.0
+				* (1.0 - pow(filtered_pressure_Kalman / p0, 0.1903));
 
-	      // Dane surowe z żyroskopu
-	      bno055_vector_t gyro = bno055_getVectorGyroscope();
-	      printf("Gyro Raw - X: %.2f Y: %.2f Z: %.2f (°/s)\r\n", gyro.x, gyro.y, gyro.z);
+		// 2) Sprawdzam przyspieszenie liniowe z BNO055
+		bno055_vector_t linAccel = bno055_getVectorLinearAccel();
+		//tu jest to przeliczenie - ktore pozniej jest brane pod uwage przy sprawdzenu ruchu - czuli oblicznay jest wypadkowy wektor
+		float linAccelMagnitude = sqrtf(
+				linAccel.x * linAccel.x + linAccel.y * linAccel.y
+						+ linAccel.z * linAccel.z);
 
-	      // Kąty Eulera po fuzji danych
-	      bno055_vector_t euler = bno055_getVectorEuler();
-	      printf("Euler - Heading: %.2f Roll: %.2f Pitch: %.2f\r\n", euler.x, euler.y, euler.z);
+		// 3) Jeśli czujnik prawie w ogóle się nie porusza, to zamrażam wysokość:
+		// treshold wyzwalania to #define NO_MOTION_THRESHOLD  0.05f - czyli 0.05 m/s²
 
-	      // Kwaterniony
-	      bno055_vector_t quat = bno055_getVectorQuaternion();
-	      printf("Quaternion - W: %.2f X: %.2f Y: %.2f Z: %.2f\r\n", quat.w, quat.x, quat.y, quat.z);
+		printf("Wypadkowy wektor: %f\n", linAccelMagnitude);
+
+		if (linAccelMagnitude > NO_MOTION_THRESHOLD) {
+			//h_over_Kalman = stable_altitude;
+			changing_altitude = h_over_Kalman;
+		} else {
+			//stable_altitude = h_over_Kalman;
+		}
+
+		// 4)  wyniki
+		printf("T = %.1f*C\n", t);
+		printf("p = %.1f hPa\n", p);
+		printf("h przed filtracją           = %.2f m\n", h);
+		printf("h po filtracji (krocząca)   = %.2f m\n", h_over_filter);
+		printf("h po filtracji (Kalman)     = %.2f m\n", h_over_Kalman);
+		printf("h po zlaczeniu danych       = %.2f m\n", changing_altitude);
+		// Dane z akcelerometru "raw" (dla podglądu)
+		bno055_vector_t accel = bno055_getVectorAccelerometer();
+		printf("Accel Raw - X: %.2f Y: %.2f Z: %.2f (m/s²)\r\n", accel.x,
+				accel.y, accel.z);
+
+		// Kąty Eulera po fuzji danych
+		bno055_vector_t euler = bno055_getVectorEuler();
+		printf("Euler - Heading: %.2f Roll: %.2f Pitch: %.2f\r\n", euler.x,
+				euler.y, euler.z);
+
+		// Kwaterniony
+		bno055_vector_t quat = bno055_getVectorQuaternion();
+		printf("Quaternion - W: %.2f X: %.2f Y: %.2f Z: %.2f\r\n", quat.w,
+				quat.x, quat.y, quat.z);
 
 
+		// Dane surowe z magnetometru
+		bno055_vector_t mag = bno055_getVectorMagnetometer();
+		printf("Magnetometer Raw - X: %.2f Y: %.2f Z: %.2f (µT)\r\n", mag.x,
+				mag.y, mag.z);
+
+		// Dane surowe z żyroskopu
+		bno055_vector_t gyro = bno055_getVectorGyroscope();
+		printf("Gyro Raw - X: %.2f Y: %.2f Z: %.2f (°/s)\r\n", gyro.x, gyro.y,
+				gyro.z);
+
+		//dla serial plota
+//		printf("%.2f %.2f %.2f\r\n", accel.x, accel.y, accel.z);
 		HAL_Delay(100);
-
 	}
 
 	/* USER CODE END WHILE */
