@@ -1,4 +1,9 @@
+../Core/Src/bno055_stm32.h:20:6:bno055_assignI2C	1
+../Core/Src/bno055_stm32.h:24:6:bno055_delay	1
+../Core/Src/bno055_stm32.h:32:6:bno055_writeData	21
+../Core/Src/bno055_stm32.h:97:6:bno055_readData	1
 ../Core/Src/main.c:69:5:__io_putchar	2
-../Core/Src/main.c:94:5:main	8
-../Core/Src/main.c:216:6:SystemClock_Config	4
-../Core/Src/main.c:278:6:Error_Handler	1
+../Core/Src/main.c:88:6:I2C_Scanner	3
+../Core/Src/main.c:105:5:main	8
+../Core/Src/main.c:251:6:SystemClock_Config	4
+../Core/Src/main.c:311:6:Error_Handler	1

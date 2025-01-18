@@ -7,7 +7,7 @@
 
 #include "lps22hh.h"
 
-// Definicje zmiennych globalnych
+
 
 uint8_t lps_read_reg(uint8_t reg)
 {
